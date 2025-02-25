@@ -8,6 +8,23 @@ const fs = require('fs');
 const dotenv = require('dotenv');
 const P2PManager = require('./p2p');
 
+// Add Application Insights for monitoring when in Azure
+let appInsights = null;
+if (process.env.APPLICATIONINSIGHTS_CONNECTION_STRING) {
+  const { ApplicationInsights } = require('applicationinsights');
+  appInsights = new ApplicationInsights();
+  appInsights.setup(process.env.APPLICATIONINSIGHTS_CONNECTION_STRING)
+    .setAutoDependencyCorrelation(true)
+    .setAutoCollectRequests(true)
+    .setAutoCollectPerformance(true)
+    .setAutoCollectExceptions(true)
+    .setAutoCollectDependencies(true)
+    .setAutoCollectConsole(true)
+    .setUseDiskRetryCaching(true)
+    .start();
+  console.log('Application Insights initialized');
+}
+
 // Load environment variables
 dotenv.config();
 
@@ -233,6 +250,11 @@ const supportedLanguages = [
 ];
 
 // API routes
+
+// Add health check endpoint for Azure
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok', version: '1.0.0', environment: process.env.NODE_ENV });
+});
 
 // Get supported languages
 app.get('/api/languages', (req, res) => {
@@ -685,10 +707,13 @@ process.on('SIGINT', () => {
 
 process.on('SIGTERM', () => {
   cleanupP2P();
+  if (appInsights) {
+    appInsights.flush({ isAppCrashing: false });
+  }
   setTimeout(() => {
-    console.log('Shutting down server...');
+    console.log('Azure shutdown signal received, gracefully shutting down...');
     process.exit(0);
-  }, 500);
+  }, 1000);
 });
 
 // Start server

@@ -224,4 +224,40 @@ PearTalk uses a cutting-edge P2P stack powered by Holepunch:
 
 ## License
 
-MIT 
+MIT
+
+## Azure Integration
+
+PearTalk is designed to work seamlessly with Azure services:
+
+### Built-in Azure Services
+
+- **Azure App Service**: Hosts the Node.js application with automatic scaling capabilities
+- **Azure AI Services**: Provides translation and speech processing functionality
+- **Application Insights**: Monitors application performance and usage
+- **Azure Key Vault**: (Optional) For securely storing sensitive credentials
+- **Azure Storage**: (Optional) For persistent message storage in production environments
+
+### Azure Deployment
+
+The repository includes a GitHub Actions workflow that automatically deploys to Azure when you push to the main branch:
+
+1. **Continuous Deployment**: Changes pushed to GitHub are automatically deployed to Azure
+2. **Environment Configuration**: App settings are configured directly from GitHub Secrets
+3. **Health Monitoring**: Application health is monitored with Application Insights web tests
+4. **Scaling**: The application can automatically scale based on load
+
+### Azure Configuration Guide
+
+To set up Azure resources for PearTalk:
+
+1. **Create Resource Group**: Create a new resource group in Azure Portal
+2. **Create App Service**: Create a new Web App with Node.js runtime
+3. **Enable Application Insights**: Enable monitoring in the App Service
+4. **Configure GitHub Secrets**: Add the following secrets to your GitHub repository:
+   - `AZURE_CREDENTIALS`: Service principal credentials for Azure
+   - `AZURE_RESOURCE_GROUP`: Your resource group name
+   - `AZURE_WEBAPP_PUBLISH_PROFILE`: The publish profile from your App Service
+   - `APPLICATIONINSIGHTS_CONNECTION_STRING`: Connection string from Application Insights
+   - `AZURE_AI_ENDPOINT`, `AZURE_API_KEY`, etc.: Your Azure AI service credentials
+   - `P2P_BOOTSTRAP_NODE1`, `P2P_BOOTSTRAP_NODE2`: Addresses of bootstrap nodes for P2P 
