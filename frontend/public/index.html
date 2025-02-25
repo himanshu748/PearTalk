@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#4CAF50" />
+    <meta name="description" content="PearTalk - P2P Chat Application" />
+    <title>PearTalk</title>
+    <!-- Add Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!-- Add Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Add custom stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    
+    <!-- App container -->
+    <div id="root">
+      <!-- Login/Register Section -->
+      <div id="auth-container" class="container">
+        <div class="auth-box">
+          <h1>PearTalk</h1>
+          <p class="subtitle">P2P Chat with Multilingual Support</p>
+          
+          <div class="tabs">
+            <button id="register-tab" class="tab-btn active">Register</button>
+            <button id="login-tab" class="tab-btn">Login</button>
+          </div>
+          
+          <div id="error-alert" class="alert error" style="display: none;"></div>
+          
+          <!-- Register Form -->
+          <form id="register-form">
+            <div class="form-group">
+              <label for="register-email">Email</label>
+              <input type="email" id="register-email" required>
+            </div>
+            <div class="form-group">
+              <label for="language">Preferred Language</label>
+              <select id="language" required>
+                <option value="en">English</option>
+                <option value="es">Spanish</option>
+                <option value="zh-Hans">Chinese (Simplified)</option>
+                <option value="hi">Hindi</option>
+                <option value="ar">Arabic</option>
+                <option value="bn">Bengali</option>
+                <option value="pt">Portuguese</option>
+                <option value="ru">Russian</option>
+                <option value="ja">Japanese</option>
+                <option value="fr">French</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Register</button>
+          </form>
+          
+          <!-- Login Form -->
+          <form id="login-form" style="display: none;">
+            <div class="form-group">
+              <label for="unique-id">Your Unique ID</label>
+              <input type="text" id="unique-id" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Login</button>
+          </form>
+          
+          <!-- OTP Form -->
+          <form id="otp-form" style="display: none;">
+            <div class="info-message">An OTP has been sent to your email. Please check your inbox.</div>
+            <div class="form-group">
+              <label for="otp">Enter OTP</label>
+              <input type="text" id="otp" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Verify OTP</button>
+          </form>
+        </div>
+      </div>
+      
+      <!-- Chat Section -->
+      <div id="chat-container" style="display: none;">
+        <!-- Header -->
+        <header class="chat-header">
+          <h2>PearTalk</h2>
+          <div class="header-actions">
+            <button id="add-friend-btn" class="icon-btn" title="Add Friend">
+              <span class="material-icons">person_add</span>
+            </button>
+            <button id="notifications-btn" class="icon-btn" title="Notifications">
+              <span class="material-icons">notifications</span>
+              <span id="notification-badge" class="badge" style="display: none;">0</span>
+            </button>
+            <button id="refresh-btn" class="icon-btn" title="Refresh">
+              <span class="material-icons">refresh</span>
+            </button>
+            <button id="logout-btn" class="btn btn-text">Logout</button>
+          </div>
+        </header>
+        
+        <!-- Main chat area -->
+        <div class="chat-main">
+          <!-- Friends sidebar -->
+          <div class="friends-sidebar">
+            <h3>Friends <span id="friends-count">(0)</span></h3>
+            <div id="friends-list" class="friends-list">
+              <!-- Friends will be added here dynamically -->
+              <div class="empty-friends">
+                <p>No friends yet. Add friends using their unique ID.</p>
+                <button id="sidebar-add-friend-btn" class="btn btn-outline">
+                  <span class="material-icons">person_add</span> Add Friend
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Messages area -->
+          <div class="messages-area">
+            <!-- No friend selected state -->
+            <div id="welcome-message" class="welcome-message">
+              <h3>Welcome to PearTalk!</h3>
+              <p>Select a friend from the list to start chatting or add new friends.</p>
+              <div class="user-id-box">
+                <h4>Your Unique ID:</h4>
+                <div class="id-display" id="user-unique-id"></div>
+                <p class="id-help">Share this ID with your friends so they can add you</p>
+              </div>
+              <button id="welcome-add-friend-btn" class="btn btn-primary">
+                <span class="material-icons">person_add</span> Add Friend
+              </button>
+            </div>
+            
+            <!-- Chat view when friend is selected -->
+            <div id="chat-view" style="display: none;">
+              <!-- Chat with selected friend -->
+              <div class="chat-header-info">
+                <div class="friend-avatar"></div>
+                <div class="friend-info">
+                  <h3 id="selected-friend-name"></h3>
+                  <p id="selected-friend-language"></p>
+                </div>
+              </div>
+              
+              <div id="messages-container" class="messages-container">
+                <!-- Messages will be added here dynamically -->
+                <div id="empty-conversation" class="empty-conversation">
+                  <p>Start your conversation</p>
+                </div>
+              </div>
+              
+              <form id="message-form" class="message-form">
+                <input type="text" id="message-input" placeholder="Type a message..." disabled>
+                <button type="button" id="voice-btn" class="icon-btn" title="Record Voice Message" disabled>
+                  <span class="material-icons">mic</span>
+                </button>
+                <button type="submit" id="send-btn" class="icon-btn" title="Send Message" disabled>
+                  <span class="material-icons">send</span>
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Add Friend Dialog -->
+      <div id="add-friend-dialog" class="dialog" style="display: none;">
+        <div class="dialog-content">
+          <h3>Add Friend</h3>
+          <form id="add-friend-form">
+            <div class="form-group">
+              <label for="friend-id">Friend's Unique ID</label>
+              <input type="text" id="friend-id" required>
+            </div>
+            <div class="dialog-actions">
+              <button type="button" id="cancel-add-friend" class="btn btn-text">Cancel</button>
+              <button type="submit" class="btn btn-primary">Add</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      
+      <!-- Notifications Dialog -->
+      <div id="notifications-dialog" class="dialog" style="display: none;">
+        <div class="dialog-content">
+          <h3>Notifications</h3>
+          <div id="requests-container">
+            <p id="no-requests-message">No new friend requests</p>
+            <ul id="requests-list">
+              <!-- Friend requests will be added here dynamically -->
+            </ul>
+          </div>
+          <div class="dialog-actions">
+            <button id="close-notifications" class="btn btn-primary">Close</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Overlay for dialogs -->
+      <div id="overlay" style="display: none;"></div>
+    </div>
+
+    <!-- App scripts -->
+    <script src="app.js"></script>
+  </body>
+</html> 
