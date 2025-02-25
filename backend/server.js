@@ -6,6 +6,7 @@ const axios = require('axios');
 const path = require('path');
 const fs = require('fs');
 const dotenv = require('dotenv');
+const P2PManager = require('./p2p');
 
 // Load environment variables
 dotenv.config();
@@ -53,6 +54,48 @@ const azureEndpoint = process.env.AZURE_AI_ENDPOINT;
 const azureApiKey = process.env.AZURE_API_KEY;
 const azureSpeechToTextEndpoint = process.env.AZURE_SPEECH_TO_TEXT_ENDPOINT;
 const azureTextToSpeechEndpoint = process.env.AZURE_TEXT_TO_SPEECH_ENDPOINT;
+
+// Initialize P2P Manager
+const p2pManagers = new Map(); // Map of user IDs to their P2P managers
+
+// Function to get or create a P2P manager for a user
+function getP2PManager(userId) {
+  if (!p2pManagers.has(userId)) {
+    const manager = new P2PManager({
+      userId,
+      storageDirectory: path.join(dataDir, 'p2p', userId)
+    });
+    
+    // Listen for P2P messages
+    manager.on('message', async (message) => {
+      console.log(`P2P message received for user ${userId}:`, message.type);
+      
+      // Process message (e.g., translation for text messages)
+      if (message.type === 'text' && message.sender !== userId) {
+        const receiverLanguage = users.get(userId)?.preferredLanguage;
+        if (receiverLanguage) {
+          try {
+            // Translate the message content
+            const translatedText = await translateText(message.content, receiverLanguage);
+            message.originalContent = message.content;
+            message.content = translatedText;
+          } catch (error) {
+            console.error('Translation error in P2P message:', error);
+          }
+        }
+      }
+    });
+    
+    // Connect to P2P network
+    manager.connect().catch(err => {
+      console.error(`Error connecting user ${userId} to P2P network:`, err);
+    });
+    
+    p2pManagers.set(userId, manager);
+  }
+  
+  return p2pManagers.get(userId);
+}
 
 // Helper functions
 function generateOTP() {
@@ -241,6 +284,9 @@ app.post('/api/register', async (req, res) => {
     // Initialize empty friends list
     friends.set(uniqueId, []);
     
+    // Initialize P2P for this user
+    getP2PManager(uniqueId);
+    
     // Send OTP email
     try {
       await sendOTPEmail(email, otp);
@@ -404,6 +450,14 @@ app.post('/api/friend-request/respond', async (req, res) => {
         fromFriends.push(userId);
         friends.set(fromId, fromFriends);
       }
+      
+      // Initialize P2P chat between these users
+      const userP2P = getP2PManager(userId);
+      const friendP2P = getP2PManager(fromId);
+      
+      // Join the same chat topic
+      await userP2P.joinChat(fromId);
+      await friendP2P.joinChat(userId);
     }
     
     res.json({ message: `Friend request ${status}` });
@@ -507,53 +561,34 @@ app.post('/api/chat/message', async (req, res) => {
       return res.status(403).json({ error: 'Not friends with this user' });
     }
     
-    // Get receiver's preferred language
-    const receiver = users.get(toId);
+    // Get user's P2P manager
+    const p2pManager = getP2PManager(fromId);
     
     // Process message based on type
     let processedMessage = { ...message };
     
     if (message.type === 'text') {
-      // Translate text message
-      const translatedText = await translateText(message.content, receiver.preferredLanguage);
-      processedMessage.content = translatedText;
+      // No need to translate here - translation happens on receiver side
       processedMessage.originalContent = message.content;
     } 
     else if (message.type === 'voice') {
       // Process voice message
       // 1. Transcribe audio to text
       const transcribedText = await speechToText(Buffer.from(message.content, 'base64'));
-      
-      // 2. Translate text
-      const translatedText = await translateText(transcribedText, receiver.preferredLanguage);
-      
-      // 3. Convert translated text back to speech
-      const translatedAudio = await textToSpeech(translatedText, receiver.preferredLanguage);
-      
-      processedMessage.content = translatedAudio;
-      processedMessage.transcription = translatedText;
       processedMessage.originalTranscription = transcribedText;
     }
     
     // Add message metadata
     const messageData = {
       ...processedMessage,
-      fromId,
-      toId,
+      sender: fromId,
+      recipient: toId,
       timestamp: Date.now(),
       id: uuidv4()
     };
     
-    // Store message
-    if (!messages.has(fromId)) {
-      messages.set(fromId, []);
-    }
-    if (!messages.has(toId)) {
-      messages.set(toId, []);
-    }
-    
-    messages.get(fromId).push(messageData);
-    messages.get(toId).push(messageData);
+    // Send via P2P
+    await p2pManager.sendMessage(messageData);
     
     res.status(201).json(messageData);
   } catch (error) {
@@ -563,7 +598,7 @@ app.post('/api/chat/message', async (req, res) => {
 });
 
 // Get messages
-app.get('/api/chat/messages/:userId/:friendId', (req, res) => {
+app.get('/api/chat/messages/:userId/:friendId', async (req, res) => {
   try {
     const { userId, friendId } = req.params;
     
@@ -572,19 +607,11 @@ app.get('/api/chat/messages/:userId/:friendId', (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
     
-    // Get messages
-    const userMessages = messages.get(userId) || [];
+    // Get message history from P2P storage
+    const p2pManager = getP2PManager(userId);
+    const messages = await p2pManager.getMessages(friendId);
     
-    // Filter messages between these two users
-    const conversationMessages = userMessages.filter(msg => 
-      (msg.fromId === userId && msg.toId === friendId) || 
-      (msg.fromId === friendId && msg.toId === userId)
-    );
-    
-    // Sort by timestamp
-    conversationMessages.sort((a, b) => a.timestamp - b.timestamp);
-    
-    res.json(conversationMessages);
+    res.json(messages);
   } catch (error) {
     console.error('Get messages error:', error);
     res.status(500).json({ error: 'Failed to get messages' });
@@ -636,6 +663,33 @@ setInterval(() => {
     }
   }
 }, 15 * 60 * 1000); // Run every 15 minutes
+
+// Add a cleanup function for P2P when shutting down
+function cleanupP2P() {
+  console.log('Closing all P2P connections...');
+  for (const [userId, manager] of p2pManagers) {
+    manager.disconnect().catch(err => {
+      console.error(`Error disconnecting user ${userId} from P2P network:`, err);
+    });
+  }
+}
+
+// Handle graceful shutdown
+process.on('SIGINT', () => {
+  cleanupP2P();
+  setTimeout(() => {
+    console.log('Shutting down server...');
+    process.exit(0);
+  }, 500);
+});
+
+process.on('SIGTERM', () => {
+  cleanupP2P();
+  setTimeout(() => {
+    console.log('Shutting down server...');
+    process.exit(0);
+  }, 500);
+});
 
 // Start server
 app.listen(PORT, () => {

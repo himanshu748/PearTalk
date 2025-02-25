@@ -191,12 +191,23 @@ peartalk/
 
 ## Architecture
 
-PearTalk uses a hybrid architecture:
+PearTalk uses a true peer-to-peer architecture:
 
-- **Backend Server**: Handles user management, authentication, friend requests, and translation services.
-- **P2P Communication**: Direct messaging between users with server-assisted translation.
+- **Backend Server**: Handles user management, authentication, friend requests, and acts as a signaling server to establish P2P connections.
+- **True P2P Communication**: Direct peer-to-peer communication between users using Hyperswarm and Hypercore for message exchange without server intermediation.
+- **Local Storage**: Messages are stored in a distributed append-only log using Hypercore and Hyperbee.
 - **Azure AI Services**: Provides real-time translation and speech processing capabilities.
 - **Frontend**: Pure HTML, CSS, and JavaScript for a sleek UI without complex build systems.
+
+## P2P Technology Stack
+
+PearTalk uses a cutting-edge P2P stack powered by Holepunch:
+
+- **Hyperswarm**: Discovery and connection between peers
+- **Hypercore**: Append-only log for message history
+- **Hyperbee**: B-tree database built on Hypercore for message indexing
+- **Secretstream**: End-to-end encrypted peer connections
+- **NAT Traversal**: Automatic handling of firewalls and NAT
 
 ## Advantages of HTML/JS Integration
 
@@ -208,8 +219,7 @@ PearTalk uses a hybrid architecture:
 
 ## Limitations
 
-- For demo purposes, this application uses in-memory storage. In a production environment, it would use a database.
-- P2P communication is simulated through the server for simplicity.
+- For demo purposes, this application uses in-memory storage for user data. In a production environment, it would use a database.
 - Voice message quality may vary based on network conditions.
 
 ## License
